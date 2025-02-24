@@ -20,6 +20,7 @@ import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
+import dji.common.camera.CameraVideoStreamSource
 import dji.common.camera.SettingsDefinitions
 import dji.common.error.DJIError
 import dji.common.error.DJISDKError
@@ -30,6 +31,8 @@ import dji.common.gimbal.RotationMode
 import dji.common.util.CommonCallbacks
 import dji.sdk.base.BaseComponent
 import dji.sdk.base.BaseProduct
+import dji.sdk.camera.VideoFeeder
+import dji.sdk.camera.VideoFeeder.VideoDataListener
 import dji.sdk.media.DownloadListener
 import dji.sdk.media.FetchMediaTask
 import dji.sdk.media.MediaManager
@@ -129,11 +132,14 @@ class MainActivity : AppCompatActivity(), DJISDKManager.SDKManagerCallback {
     private var followingVelocityCommands = false
     private var velocityControlRunnable: Runnable? = null
 
+    private var videoDataListener: VideoDataListener? = null
+    private lateinit var debugTextView: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        debugTextView = findViewById(R.id.debugText)
         ipText = findViewById(R.id.ipText)
         regText = findViewById(R.id.regText)
         droneNameText = findViewById(R.id.droneNameText)
@@ -150,6 +156,7 @@ class MainActivity : AppCompatActivity(), DJISDKManager.SDKManagerCallback {
         sdkManager.setCallbackRunInUIThread(true)
 
         regText.text = getString(R.string.registering)
+        debugTextView.text = getString(R.string.debug_message)
 
         sdkManager.registerApp(this, this)
     }
@@ -1492,6 +1499,7 @@ class MainActivity : AppCompatActivity(), DJISDKManager.SDKManagerCallback {
 
         updateDroneDetails()
         notifyStatusChanged()
+        setupVideoStreaming()
     }
 
     override fun onProductChanged(product: BaseProduct?) {
@@ -1501,6 +1509,7 @@ class MainActivity : AppCompatActivity(), DJISDKManager.SDKManagerCallback {
 
         updateDroneDetails()
         notifyStatusChanged()
+        setupVideoStreaming()
     }
 
     override fun onProductDisconnect() {
@@ -1508,6 +1517,7 @@ class MainActivity : AppCompatActivity(), DJISDKManager.SDKManagerCallback {
         drone = null
         updateDroneDetails()
         notifyStatusChanged()
+        videoDataListener?.let { VideoFeeder.getInstance().primaryVideoFeed?.removeVideoDataListener(it) }
     }
 
     override fun onComponentChange(
@@ -1536,5 +1546,48 @@ class MainActivity : AppCompatActivity(), DJISDKManager.SDKManagerCallback {
         handler.post {
             Toast.makeText(this, text, Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun setupVideoStreaming() {
+        Log.d("DJI_VIDEO", "Initializing video streaming...")
+        updateDebugMessage("Initializing video streaming...")
+
+
+        val product = DJISDKManager.getInstance().product
+        if (product == null || product !is Aircraft) {
+            Log.e("DJI_VIDEO", "No DJI Aircraft connected")
+            updateDebugMessage("No DJI Aircraft connected")
+
+            return
+        }
+
+        val videoFeeder = VideoFeeder.getInstance().primaryVideoFeed
+        if (videoFeeder == null){
+            Log.e("DJI_VIDEO", "Video feed is not available")
+            updateDebugMessage("Video feed is not available")
+
+            return
+        }
+
+        videoDataListener = VideoFeeder.VideoDataListener{ videoBuffer, size ->
+            Log.d("DJI_VIDEO", "Received from frame: $size bytes")
+            updateDebugMessage("Received video frame: $size bytes")
+
+
+            //TODO: Encode & stream video
+        }
+
+        videoFeeder.addVideoDataListener(videoDataListener!!)
+
+        val camera = product.camera
+        if (camera == null) {
+            Log.e("DJI_VIDEO", "No camera found")
+            return
+        }
+
+    }
+
+    private fun updateDebugMessage(message: String) {
+        debugTextView.text = message
     }
 }

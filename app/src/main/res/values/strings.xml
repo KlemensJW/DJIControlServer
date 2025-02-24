@@ -10,4 +10,5 @@
     <string name="unknown_drone">Unknown Drone</string>
     <string name="battery_percentage">Battery: %1$d%2$s</string>
     <string name="drone_disconnected">Drone Disconnected</string>
+    <string name="debug_message">Debug Message</string>
 </resources>
