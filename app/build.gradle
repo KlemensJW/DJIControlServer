@@ -13,6 +13,7 @@ def DJI_API_KEY = localProperties.getProperty("DJI_API_KEY", "")
 println "DJI API Key (build.gradle): " + DJI_API_KEY  // <-- Add this line
 
 android {
+    namespace = "com.rrc.djiControlServer"
     compileSdk 32
     buildToolsVersion "30.0.3"
 
